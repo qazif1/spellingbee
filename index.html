@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spelling Bee Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Landing Page -->
+  <div id="landingPage" class="page active landing-bg">
+    <div class="landing-content">
+      <img src="bee.jpg" alt="Spelling Bee" class="landing-img" />
+      <h1 class="game-title">SATPIN & CKEHRMD Spelling Bee</h1>
+      <p class="game-desc">Drag letters, spell words, and beat the clock!</p>
+      <div class="landing-buttons">
+        <button id="startBtn" class="start-btn">🚀 Start Game</button>
+        <button id="howToPlayBtn" class="info-btn">❓ How to Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to Play Modal -->
+  <div id="howToPlayModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h2>How to Play</h2>
+      <ul>
+        <li>Click "Play Word" to hear the target word.</li>
+        <li>Drag letters into boxes to spell the word.</li>
+        <li>You have 30 seconds for each word.</li>
+        <li>Click "Hint" to fill the first letter.</li>
+        <li>Score points for every correct word!</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Game Page -->
+  <div id="gamePage" class="page">
+    <h1>Spelling Bee Game</h1>
+    <div class="progress-container">
+      <div id="progressBar"></div>
+    </div>
+    <p id="progressText">Word 1 of 54</p>
+    <p id="timer">Time: 30s</p>
+    <p id="instruction">Listen to the word and drag letters into the boxes below to spell it!</p>
+    <button id="playWordBtn">🔊 Play Word</button>
+    <button id="hintBtn">💡 Hint</button>
+    <div id="answerContainer"></div>
+    <div id="lettersContainer"></div>
+    <p id="feedback"></p>
+    <p id="score">Score: 0</p>
+    <button id="nextBtn" style="display:none;">Next Word</button>
+  </div>
+
+  <!-- Game Over Page -->
+  <div id="gameOverPage" class="page">
+    <h1>Game Over!</h1>
+    <p id="finalScore"></p>
+    <button id="restartBtn">Restart Game</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
