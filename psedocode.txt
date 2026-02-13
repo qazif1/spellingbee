@@ -1,0 +1,325 @@
+START PROGRAM
+
+  // GET ELEMENTS 
+  landingPage   = element("landingPage")
+  gamePage      = element("gamePage")
+  gameOverPage  = element("gameOverPage")
+  howToPlayModal= element("howToPlayModal")
+
+  startBtn      = element("startBtn")
+  howToPlayBtn  = element("howToPlayBtn")
+  closeModalBtn = elementWithClass("close-btn")
+
+  playWordBtn   = element("playWordBtn")
+  hintBtn       = element("hintBtn")
+  nextBtn       = element("nextBtn")
+  restartBtn    = element("restartBtn")
+
+  answerContainer  = element("answerContainer")
+  lettersContainer = element("lettersContainer")
+
+  timerText     = element("timer")
+  progressText  = element("progressText")
+  progressBar   = element("progressBar")
+
+  feedbackText  = element("feedback")
+  scoreText     = element("score")
+  finalScoreText= element("finalScore")
+
+  // ---------- GAME STATE ----------
+  wordList   = [ ... 54 words ... ]
+  currentIdx = 0
+  score      = 0
+  timeLeft   = 30
+  timerId    = null
+
+  // ---------- UI HELPERS ----------
+  FUNCTION showOnly(page):
+    hide(landingPage)
+    hide(gamePage)
+    hide(gameOverPage)
+    show(page)
+  END FUNCTION
+
+  FUNCTION openModal(modal):
+    show(modal)
+  END FUNCTION
+
+  FUNCTION closeModal(modal):
+    hide(modal)
+  END FUNCTION
+
+  // Timer
+  FUNCTION stopTimer():
+    IF timerId IS NOT null:
+      clearInterval(timerId)
+      timerId = null
+    ENDIF
+  END FUNCTION
+
+  FUNCTION updateTimerUI():
+    timerText.text = "Time: " + timeLeft + "s"
+  END FUNCTION
+
+  FUNCTION startTimer():
+    stopTimer()
+    timeLeft = 30
+    updateTimerUI()
+
+    timerId = setInterval(every 1 second):
+      timeLeft = timeLeft - 1
+      updateTimerUI()
+
+      IF timeLeft <= 0:
+        stopTimer()
+        feedbackText.text = "Time's up!"
+        disableAllDragging()
+        show(nextBtn)
+      ENDIF
+    ENDINTERVAL
+  END FUNCTION
+
+  // prgess
+  FUNCTION updateProgressUI():
+    progressText.text = "Word " + (currentIdx + 1) + " of " + length(wordList)
+    percent = ((currentIdx + 1) / length(wordList)) * 100
+    progressBar.style.width = percent + "%"
+  END FUNCTION
+
+  // Set up of words
+  FUNCTION loadWord(index):
+    clear(answerContainer)
+    clear(lettersContainer)
+    feedbackText.text = ""
+    hide(nextBtn)
+
+    targetWord = wordList[index]
+
+    // answer boxes
+    FOR i FROM 0 TO length(targetWord) - 1:
+      box = createAnswerBox()
+      box.expectedIndex = i
+
+      // Allow dropping
+      onDragOver(box): preventDefault()
+      onDrop(box): handleDropIntoBox(box)
+
+      append(answerContainer, box)
+    END FOR
+
+    // tiles (shuffled)
+    letters = splitIntoCharacters(targetWord)
+    shuffle(letters)
+
+    FOR EACH ch IN letters:
+      tile = createLetterTile(ch)
+      onDragStart(tile): setDragData(tile.id, ch)
+      append(lettersContainer, tile)
+    END FOR
+
+    updateProgressUI()
+    startTimer()
+  END FUNCTION
+
+  // ---------- DRAG AND DROP ----------
+  FUNCTION handleDropIntoBox(box):
+    IF box.isLocked THEN return
+
+    data = getDragData()
+    letter = data.letter
+    tileId = data.tileId
+
+    box.text = letter
+    removeElementById(tileId)
+
+    IF allBoxesFilled():
+      checkAnswer()
+    ENDIF
+  END FUNCTION
+
+  FUNCTION allBoxesFilled():
+    boxes = children(answerContainer)
+    FOR EACH b IN boxes:
+      IF b.text IS empty:
+        return false
+      ENDIF
+    END FOR
+    return true
+  END FUNCTION
+
+  //check answers
+  FUNCTION checkAnswer():
+    guess = ""
+    FOR EACH box IN children(answerContainer):
+      guess = guess + box.text
+    END FOR
+
+    target = wordList[currentIdx]
+
+    IF guess == target:
+      feedbackText.text = "Correct!"
+      score = score + 1
+      scoreText.text = "Score: " + score
+      stopTimer()
+      show(nextBtn)
+    ELSE
+      feedbackText.text = "Try again."
+    ENDIF
+  END FUNCTION
+
+  // ---------- AUDIO ----------
+  FUNCTION speakWord(word):
+    textToSpeech(word)   // e.g., SpeechSynthesis in real code
+  END FUNCTION
+
+  //HINT 
+  FUNCTION giveHint():
+    target = wordList[currentIdx]
+    firstLetter = target[0]
+
+    firstBox = children(answerContainer)[0]
+    firstBox.text = firstLetter
+    firstBox.isLocked = true
+
+    // Optionally remove one matching tile from lettersContainer
+    removeOneTileWithLetter(firstLetter)
+
+    IF allBoxesFilled():
+      checkAnswer()
+    ENDIF
+  END FUNCTION
+
+  // Flow of the game
+  FUNCTION startGame():
+    score = 0
+    currentIdx = 0
+    scoreText.text = "Score: 0"
+    showOnly(gamePage)
+    loadWord(currentIdx)
+  END FUNCTION
+
+  FUNCTION nextWord():
+    currentIdx = currentIdx + 1
+
+    IF currentIdx >= length(wordList):
+      stopTimer()
+      showOnly(gameOverPage)
+      finalScoreText.text = "Final Score: " + score
+    ELSE
+      loadWord(currentIdx)
+    ENDIF
+  END FUNCTION
+
+  FUNCTION restartGame():
+    stopTimer()
+    showOnly(landingPage)
+  END FUNCTION
+
+  // Event 
+  onClick(startBtn): startGame()
+  onClick(howToPlayBtn): openModal(howToPlayModal)
+  onClick(closeModalBtn): closeModal(howToPlayModal)
+
+  onClick(playWordBtn): speakWord(wordList[currentIdx])
+  onClick(hintBtn): giveHint()
+  onClick(nextBtn): nextWord()
+  onClick(restartBtn): restartGame()
+
+  // initial UI
+  showOnly(landingPage)
+
+END PROGRAM
+// ------------------------------------------------------------
+// FURTHER MODIFICATION: Teacher selects letters, then ONLY
+// words that can be made from those letters will be played.
+
+/*
+IDEA:
+- Teacher chooses a set of allowed letters (example: [S, A, T, P, I, N]).
+- Build a filteredWordList that contains ONLY words made entirely from
+  those allowed letters.
+- Run the game using filteredWordList instead of wordList.
+*/
+
+GLOBAL allowedLetters = empty set
+GLOBAL filteredWordList = empty list
+
+FUNCTION openTeacherLetterPicker():
+  // show a panel/modal with letter buttons A-Z
+  // teacher can toggle letters on/off
+  show(teacherLetterPickerUI)
+END FUNCTION
+
+FUNCTION toggleLetter(letter):
+  IF letter IN allowedLetters THEN
+    remove letter FROM allowedLetters
+    markLetterButtonOff(letter)
+  ELSE
+    add letter TO allowedLetters
+    markLetterButtonOn(letter)
+  ENDIF
+END FUNCTION
+
+FUNCTION buildFilteredWordList():
+  filteredWordList = empty list
+
+  FOR EACH w IN wordList:
+    IF wordUsesOnlyAllowedLetters(w) == true THEN
+      add w TO filteredWordList
+    ENDIF
+  END FOR
+
+  // If nothing matches, teacher must choose more letters or different letters
+  IF length(filteredWordList) == 0 THEN
+    showMessage("No words match. Select more letters.")
+  ENDIF
+END FUNCTION
+
+FUNCTION wordUsesOnlyAllowedLetters(word):
+  letters = splitIntoCharacters(word)
+
+  FOR EACH ch IN letters:
+    upperCh = toUpperCase(ch)
+
+    IF upperCh NOT IN allowedLetters THEN
+      return false
+    ENDIF
+  END FOR
+
+  return true
+END FUNCTION
+
+FUNCTION startGameWithTeacherLetters():
+  buildFilteredWordList()
+
+  IF length(filteredWordList) > 0 THEN
+    // IMPORTANT: switch the game to use filteredWordList
+    activeList = filteredWordList
+    score = 0
+    currentIdx = 0
+    showOnly(gamePage)
+    loadWordFromActiveList(currentIdx)   // see below
+  ENDIF
+END FUNCTION
+
+FUNCTION loadWordFromActiveList(index):
+  targetWord = activeList[index]
+  // then do the same steps as loadWord():
+  // - clear containers
+  // - create answer boxes
+  // - create tiles (shuffled)
+  // - update progress
+  // - start timer
+END FUNCTION
+
+FUNCTION nextWordFromActiveList():
+  currentIdx = currentIdx + 1
+
+  IF currentIdx >= length(activeList) THEN
+    stopTimer()
+    showOnly(gameOverPage)
+    finalScoreText.text = "Final Score: " + score
+  ELSE
+    loadWordFromActiveList(currentIdx)
+  ENDIF
+END FUNCTION
