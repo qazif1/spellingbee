@@ -1,3 +1,237 @@
+PSEUDOCODE 
+
+START PROGRAM
+
+ //Elements rrequied in the program
+  landingPage   = element("landingPage")
+  gamePage      = element("gamePage")
+  gameOverPage  = element("gameOverPage")
+  howToPlayModal= element("howToPlayModal")
+
+  startBtn      = element("startBtn")
+  howToPlayBtn  = element("howToPlayBtn")
+  closeModalBtn = elementWithClass("close-btn")
+
+  playWordBtn   = element("playWordBtn")
+  hintBtn       = element("hintBtn")
+  nextBtn       = element("nextBtn")
+  restartBtn    = element("restartBtn")
+
+  answerContainer  = element("answerContainer")
+  lettersContainer = element("lettersContainer")
+
+  timerText     = element("timer")
+  progressText  = element("progressText")
+  progressBar   = element("progressBar")
+
+  feedbackText  = element("feedback")
+  scoreText     = element("score")
+  finalScoreText= element("finalScore")
+
+  // How to start game
+  wordList   = [ ... 54 words ... ]
+  currentIdx = 0
+  score      = 0
+  timeLeft   = 30
+  timerId    = null
+
+  // UI help
+  FUNCTION showOnly(page):
+    hide(landingPage)
+    hide(gamePage)
+    hide(gameOverPage)
+    show(page)
+  END FUNCTION
+
+  FUNCTION openModal(modal):
+    show(modal)
+  END FUNCTION
+
+  FUNCTION closeModal(modal):
+    hide(modal)
+  END FUNCTION
+
+  // Timer for the game
+  FUNCTION stopTimer():
+    IF timerId IS NOT null:
+      clearInterval(timerId)
+      timerId = null
+    ENDIF
+  END FUNCTION
+
+  FUNCTION updateTimerUI():
+    timerText.text = "Time: " + timeLeft + "s"
+  END FUNCTION
+
+  FUNCTION startTimer():
+    stopTimer()
+    timeLeft = 30
+    updateTimerUI()
+
+    timerId = setInterval(every 1 second):
+      timeLeft = timeLeft - 1
+      updateTimerUI()
+
+      IF timeLeft <= 0:
+        stopTimer()
+        feedbackText.text = "Time's up!"
+        disableAllDragging()
+        show(nextBtn)
+      ENDIF
+    ENDINTERVAL
+  END FUNCTION
+
+  // Progress
+  FUNCTION updateProgressUI():
+    progressText.text = "Word " + (currentIdx + 1) + " of " + length(wordList)
+    percent = ((currentIdx + 1) / length(wordList)) * 100
+    progressBar.style.width = percent + "%"
+  END FUNCTION
+
+  // Set up of Words
+  FUNCTION loadWord(index):
+    clear(answerContainer)
+    clear(lettersContainer)
+    feedbackText.text = ""
+    hide(nextBtn)
+
+    targetWord = wordList[index]
+
+    // Creation of Answer boxes
+    FOR i FROM 0 TO length(targetWord) - 1:
+      box = createAnswerBox()
+      box.expectedIndex = i
+
+      // Allow dropping
+      onDragOver(box): preventDefault()
+      onDrop(box): handleDropIntoBox(box)
+
+      append(answerContainer, box)
+    END FOR
+
+    // Letter tiles (shuffling concept)
+    letters = splitIntoCharacters(targetWord)
+    shuffle(letters)
+
+    FOR EACH ch IN letters:
+      tile = createLetterTile(ch)
+      onDragStart(tile): setDragData(tile.id, ch)
+      append(lettersContainer, tile)
+    END FOR
+
+    updateProgressUI()
+    startTimer()
+  END FUNCTION
+
+  // Dragging and Dropping letters 
+  FUNCTION handleDropIntoBox(box):
+    IF box.isLocked THEN return
+
+    data = getDragData()
+    letter = data.letter
+    tileId = data.tileId
+
+    box.text = letter
+    removeElementById(tileId)
+
+    IF allBoxesFilled():
+      checkAnswer()
+    ENDIF
+  END FUNCTION
+
+  FUNCTION allBoxesFilled():
+    boxes = children(answerContainer)
+    FOR EACH b IN boxes:
+      IF b.text IS empty:
+        return false
+      ENDIF
+    END FOR
+    return true
+  END FUNCTION
+
+  //Checking answers
+  FUNCTION checkAnswer():
+    guess = ""
+    FOR EACH box IN children(answerContainer):
+      guess = guess + box.text
+    END FOR
+
+    target = wordList[currentIdx]
+
+    IF guess == target:
+      feedbackText.text = "Correct!"
+      score = score + 1
+      scoreText.text = "Score: " + score
+      stopTimer()
+      show(nextBtn)
+    ELSE
+      feedbackText.text = "Try again."
+    ENDIF
+  END FUNCTION
+
+  // Audio
+  FUNCTION speakWord(word):
+    textToSpeech(word)   // 
+        //maybe audio files (mp3) 
+  END FUNCTION
+
+  // Getting the HInt button
+  FUNCTION giveHint():
+    target = wordList[currentIdx]
+    firstLetter = target[0]
+
+    firstBox = children(answerContainer)[0]
+    firstBox.text = firstLetter
+    firstBox.isLocked = true
+
+    // Optionally remove one matching tile from lettersContainer
+    removeOneTileWithLetter(firstLetter)
+
+    IF allBoxesFilled():
+      checkAnswer()
+    ENDIF
+  END FUNCTION
+
+  // Flow fo the game
+  FUNCTION startGame():
+    score = 0
+    currentIdx = 0
+    scoreText.text = "Score: 0"
+    showOnly(gamePage)
+    loadWord(currentIdx)
+  END FUNCTION
+
+  FUNCTION nextWord():
+    currentIdx = currentIdx + 1
+
+    IF currentIdx >= length(wordList):
+      stopTimer()
+      showOnly(gameOverPage)
+      finalScoreText.text = "Final Score: " + score
+    ELSE
+      loadWord(currentIdx)
+    ENDIF
+  END FUNCTION
+
+  FUNCTION restartGame():
+    stopTimer()
+    showOnly(landingPage)
+  END FUNCTION
+
+  //Event
+  onClick(startBtn): startGame()
+  onClick(howToPlayBtn): openModal(howToPlayModal)
+  onClick(closeModalBtn): closeModal(howToPlayModal)
+
+  onClick(playWordBtn): speakWord(wordList[currentIdx])
+  onClick(hintBtn): giveHint()
+  onClick(nextBtn): nextWord()
+  onClick(restartBtn): restartGame()
+
+  // Initial UI
+  showOnly(landingPage)
+
+// Further modification (IF else to select letters and only play those letters) 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,8 +249,8 @@
       <h1 class="game-title">SATPIN & CKEHRMD Spelling Bee</h1>
       <p class="game-desc">Drag letters, spell words, and beat the clock!</p>
       <div class="landing-buttons">
-        <button id="startBtn" class="start-btn">🚀 Start Game</button>
-        <button id="howToPlayBtn" class="info-btn">❓ How to Play</button>
+        <button id="startBtn" class="start-btn"> Start Game</button>
+        <button id="howToPlayBtn" class="info-btn"> How to Play</button>
       </div>
     </div>
   </div>
